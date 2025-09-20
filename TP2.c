@@ -28,6 +28,10 @@ static void CS_ADXL(uint32_t state)
     }
 }
 
+static void init_serial2(void);
+static void init_adxl_345(void);
+static void lire_multiple_regADXL(adresse_type reg, int n, uint8_t *dst);
+
 // === Variables globales ===
 uint8_t MaeRcp = 0;
 uint8_t entete = 0;
@@ -134,7 +138,12 @@ static void config_usart2(void)
     (void)USART2->SR;
     (void)USART2->DR;
 
-  
+
+}
+
+static void init_serial2(void)
+{
+    config_usart2();
 }
 // ===== SPI1 <-> ADXL345 =====
 // Broches (Nucleo F103RB):
@@ -219,27 +228,48 @@ void config_regADXL(adresse_type ADXL345_REG, val_type ADXL345_VAL_REG)
 // R/W=1 (bit7), MB=0 (bit6) → lecture simple, 1 octet
 type_retour lire_regADXL(adresse_type ADXL345_REG)
 {
+    uint8_t val;
     uint8_t addr = 0x80 | (uint8_t)(ADXL345_REG & 0x3F);  // 1xxx xxxx
 
     CS_ADXL(SELECT);                 // nCS bas
     (void)spi1_txrx(addr);           // envoi adresse (retour ignoré)
-    uint8_t val = spi1_txrx(0xFF);   // dummy write → lit la donnée
+    val = spi1_txrx(0xFF);           // dummy write → lit la donnée
     CS_ADXL(RELEASE);                // nCS haut
 
     return (type_retour)val;
 }
 
-     
-     
-     
+static void lire_multiple_regADXL(adresse_type reg, int n, uint8_t *dst)
+{
+    uint8_t addr = 0x80 | (uint8_t)(reg & 0x3F);
+    int i;
+
+    if (n > 1) {
+        addr |= 0x40; /* multi-byte */
+    }
+
+    CS_ADXL(SELECT);
+    (void)spi1_txrx(addr);
+    for (i = 0; i < n; i++) {
+        dst[i] = spi1_txrx(0xFF);
+    }
+    CS_ADXL(RELEASE);
+}
+
+
+
+
 // Choix de la broche d'interruption ADXL345 (à adapter si besoin)
 // Ici : INT1 sur PB0  (entrée pull-up)
 #define ADXL_INT_GPIO      GPIOB
 #define ADXL_INT_PIN       0
+#define INT_ADXL (!(ADXL_INT_GPIO->IDR & (1U << ADXL_INT_PIN)))
 
 void init_ADXL(void)
 {
     /* --- 1) GPIO pour broche d'interruption ADXL : PB0 input pull-up --- */
+    uint8_t devid;
+
     RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;                 // horloge GPIOB
     // PB0 : MODE=00 (input), CNF=10 (entrée pull-up/pull-down)
     ADXL_INT_GPIO->CRL &= ~(GPIO_CRL_MODE0 | GPIO_CRL_CNF0);
@@ -250,7 +280,7 @@ void init_ADXL(void)
     init_SPI1_ADXL();                                   // déjà fourni
 
     /* --- 3) Vérifier l’ID du capteur (optionnel mais utile) --- */
-    uint8_t devid = (uint8_t)lire_regADXL(ADXL345_DEVID);
+    devid = (uint8_t)lire_regADXL(ADXL345_DEVID);
     // L’ID attendu de l’ADXL345 = 0xE5. Tu peux poser un breakpoint ici si besoin.
 
     /* --- 4) Configuration des registres ADXL345 via l’outil 1 --- */
@@ -292,6 +322,11 @@ void init_ADXL(void)
 
     /* --- 5) (Option) lecture du INT_SOURCE pour nettoyer --- */
     (void)lire_regADXL(ADXL345_INT_SOURCE);
+}
+
+static void init_adxl_345(void)
+{
+    init_ADXL();
 }
 
 
@@ -439,8 +474,16 @@ uint8_t I2C_read_PCF8574(uint8_t adresse)
 }
 void maj_leds_casiers(void)
 {
-	} 
+}
 void lire_etat_casiers(void)
+{
+}
+
+void envoyer_trame_casiers(void)
+{
+}
+
+void envoyer_trame_ZIF16(void)
 {
 }
 
@@ -463,8 +506,10 @@ static void fifo_put(uint8_t b) {
 
 // pousse un bloc si assez de place
 static int fifo_put_block(const uint8_t *blk, int n) {
+    int i;
+
     if (!fifo_peut_ecrire(n)) return 0;
-    for (int i = 0; i < n; i++) fifo_put(blk[i]);
+    for (i = 0; i < n; i++) fifo_put(blk[i]);
     return 1;
 }
 void read_ADXL_sensors(uint8_t *dst6) {
@@ -504,9 +549,8 @@ static void fifo_push_0x55_burst(uint16_t n)
 //============================================================================================test
 
 int main(void)
-{ int rep_ack;
-	uint8_t bits_entete;
-	uint16_t etat_ZIF16;
+{
+	uint16_t etat_ZIF16 = 0;
 	init_proc();
 	
 	fifo_push_0x55_burst(256);   // on remplit une première fois//============================================================================================test
@@ -525,6 +569,7 @@ int main(void)
 				// Appliquer consigne_dir et consigne_etat
 			                 init_ZIF16();//pour mettre � jour les pattes
 			                 etat_ZIF16 = lire_etat_ZIF16();
+			                 (void)etat_ZIF16;
 			                 envoyer_trame_ZIF16();
 											}	
 	if(USART2->SR & USART_SR_RXNE )
