@@ -5,6 +5,29 @@
 
 #include "ADXL345.h"
 
+#ifndef ADXL345_TYPES_DEFINED
+#define ADXL345_TYPES_DEFINED
+typedef uint8_t adresse_type;
+typedef uint8_t val_type;
+typedef uint8_t type_retour;
+#endif
+
+#ifndef SELECT
+#define SELECT 0U
+#endif
+#ifndef RELEASE
+#define RELEASE 1U
+#endif
+
+static void CS_ADXL(uint32_t state)
+{
+    if (state == SELECT) {
+        GPIOA->BSRR = (1U << (4U + 16U));
+    } else {
+        GPIOA->BSRR = (1U << 4U);
+    }
+}
+
 // === Variables globales ===
 uint8_t MaeRcp = 0;
 uint8_t entete = 0;
@@ -43,24 +66,17 @@ struct_xyz_t capteurs;
 
 
 void init_ZIF16(void)
-{uint8_t boucle;
- uint32_t choix_INOUT;
- uint8_t	choix_etat;	
-for(boucle = 0; boucle<8; boucle++)
-	{ choix_INOUT = 	;
-		choix_etat = 		 ;
-	  
-	}
-for(boucle = 8; boucle<16; boucle++)
-	{ choix_INOUT =  ;
-	  choix_etat =   ;
-	 
-	}
+{
+    uint8_t boucle;
+
+    for (boucle = 0; boucle < 16; boucle++) {
+        (void)boucle;
+    }
 }
 
 uint16_t lire_etat_ZIF16(void)
 {
-	return ;
+    return 0;
 }
 
 void  init_I2C_BITBANGING(void)
@@ -71,6 +87,10 @@ void  init_I2C_BITBANGING(void)
 #define USART2_BAUD      9600U
 static void config_usart2(void)
 {
+    uint32_t div;
+    uint32_t mantissa;
+    uint32_t fraction;
+
    /* 1) Clocks GPIOA + AFIO (pour config AF des broches) */
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN;
 
@@ -97,9 +117,9 @@ static void config_usart2(void)
     USART2->CR3 = 0;
 
     // Baudrate (oversampling x16) : BRR = mantissa<<4 | fraction
-    uint32_t div = (USART2_PCLK1 + (USART2_BAUD/2U)) / USART2_BAUD; // arrondi
-    uint32_t mantissa = div / 16U;
-    uint32_t fraction = div - (mantissa * 16U);
+    div = (USART2_PCLK1 + (USART2_BAUD/2U)) / USART2_BAUD; // arrondi
+    mantissa = div / 16U;
+    fraction = div - (mantissa * 16U);
     USART2->BRR = (mantissa << 4) | (fraction & 0xF);
     // Équivalent fixe si PCLK1=36 MHz : USART2->BRR = 0x0EA6;
 
@@ -121,7 +141,7 @@ static void config_usart2(void)
 // PA5 = SCK (AF Push-Pull)   | PA6 = MISO (entrée flottante)
 // PA7 = MOSI (AF Push-Pull)  | PA4 = nCS (GPIO sortie P-P, pilotée logiciel)
 
-static inline uint8_t spi1_txrx(uint8_t v)
+static uint8_t spi1_txrx(uint8_t v)
 {
     SPI1->DR = v;                                // émettre
     while (!(SPI1->SR & SPI_SR_RXNE)) { /* wait */ } // attendre un octet reçu
@@ -362,45 +382,60 @@ void gere_serial2(void) {
     }
 }
 
-void I2C_Delay(void) {volatile int i;
-    for ( i = 0; i < 10; i++);
+void I2C_Delay(void)
+{
+    volatile int i;
+
+    for (i = 0; i < 10; i++) {
+        /* delay */
+    }
 }
 
 // Start condition
-void I2C_Start(void) {
- 
+void I2C_Start(void)
+{
 }
 
 // Stop condition
-void I2C_Stop(void) {
- 
+void I2C_Stop(void)
+{
 }
 
 // Send 1 bit
-void I2C_WriteBit(uint8_t bit) {
-  
+void I2C_WriteBit(uint8_t bit)
+{
+    (void)bit;
 }
 
 // Read 1 bit
-uint8_t I2C_ReadBit(void) {
-
+uint8_t I2C_ReadBit(void)
+{
+    return 0;
 }
 
 // Send 1 byte (returns ACK=0 / NACK=1)
-uint8_t I2C_WriteByte(uint8_t data) 
+uint8_t I2C_WriteByte(uint8_t data)
 {
+    (void)data;
+    return 0;
 }
 
 // Read 1 byte and send ACK/NACK
-uint8_t I2C_ReadByte(uint8_t ack) 
+uint8_t I2C_ReadByte(uint8_t ack)
 {
+    (void)ack;
+    return 0;
 }
 void I2C_write_PCF8574(uint8_t adresse, uint8_t data)
-{ 
+{
+    (void)adresse;
+    (void)data;
 }
 
 uint8_t I2C_read_PCF8574(uint8_t adresse)
-{	
+{
+    (void)adresse;
+    return 0;
 }
 void maj_leds_casiers(void)
 {
@@ -418,16 +453,16 @@ void init_proc(void)
  init_SPI1_ADXL();
  init_adxl_345();// fonction donn�e � condition d'�crire 	config_regADXL(unsigned char reg, unsigned char data) 
 }
-static inline int fifo_peut_ecrire(int n) { return place_libre >= n; }
+static int fifo_peut_ecrire(int n) { return place_libre >= n; }
 
-static inline void fifo_put(uint8_t b) {
+static void fifo_put(uint8_t b) {
     fifo[pw] = b;
     pw = (uint8_t)(pw + 1);   // 256 => auto-wrap
     place_libre--;
 }
 
 // pousse un bloc si assez de place
-static inline int fifo_put_block(const uint8_t *blk, int n) {
+static int fifo_put_block(const uint8_t *blk, int n) {
     if (!fifo_peut_ecrire(n)) return 0;
     for (int i = 0; i < n; i++) fifo_put(blk[i]);
     return 1;
@@ -435,7 +470,7 @@ static inline int fifo_put_block(const uint8_t *blk, int n) {
 void read_ADXL_sensors(uint8_t *dst6) {
     lire_multiple_regADXL(ADXL345_DATAX0, 6, dst6);
 }
-static inline void pack13(int16_t v, uint8_t *hi6, uint8_t *lo7) {
+static void pack13(int16_t v, uint8_t *hi6, uint8_t *lo7) {
     uint16_t s13 = (uint16_t)v & 0x1FFF;   // deux-complements 13 bits
     *hi6 = (uint8_t)((s13 >> 7) & 0x3F);   // 6 bits, b7=0
     *lo7 = (uint8_t)( s13       & 0x7F);   // 7 bits, b7=0
@@ -459,7 +494,7 @@ void envoi_trame_accelero(void)
 }
 
 //============================================================================================test
-static inline void fifo_push_0x55_burst(uint16_t n)
+static void fifo_push_0x55_burst(uint16_t n)
 {
     while (n--) {
         if (!fifo_peut_ecrire(1)) break;
