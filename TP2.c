@@ -40,6 +40,9 @@ static void CS_ADXL(uint32_t state)
 static void   config_usart2(void);
 static void   init_ADXL(void);
 static void   lire_multiple_regADXL(adresse_type reg, int n, uint8_t *dst);
+static int    fifo_peut_ecrire(int n);
+static void   fifo_put(uint8_t b);
+static int    fifo_put_block(const uint8_t *blk, int n);
 
 /* -------------------------------------------------------------------------- */
 /* Variables GLOBALes liées aux protocoles et états                           */
@@ -103,20 +106,21 @@ void init_ZIF16(void)
     RCC->APB2ENR |= (1<<3) | (1<<4);
     /* PB8..PB15 : CRH, mettre CNF=10 MODE=00 (input PU/PD) + ODR=0 (PD) */
     GPIOB->CRH = 0; /* we'll set per-nibble */
-    for (int i=8;i<16;i++){
+    int i;
+
+    for (i=8;i<16;i++){
         uint32_t shift = (i-8)*4;
         GPIOB->CRH &= ~(0xFu<<shift);
         GPIOB->CRH |=  (0x8u<<shift); /* 1000b */
     }
     GPIOB->ODR &= ~(0xFF00u);
     /* PC0..PC7 : CRL, idem */
-    for (int i=0;i<8;i++){
+    for (i=0;i<8;i++){
         uint32_t shift = i*4;
         GPIOC->CRL &= ~(0xFu<<shift);
         GPIOC->CRL |=  (0x8u<<shift);
     }
     GPIOC->ODR &= ~(0x00FFu);
-}
 }
 
 uint16_t lire_etat_ZIF16(void)
@@ -519,7 +523,9 @@ uint8_t I2C_ReadBit(void)
 }
 uint8_t I2C_WriteByte(uint8_t data)
 {
-    for (int i = 7; i >= 0; --i) {
+    int i;
+
+    for (i = 7; i >= 0; --i) {
         I2C_WriteBit((uint8_t)((data>>i) & 1u));
     }
     /* Lire ACK (0=ACK) -> renvoyer 1 si ACK reçu */
@@ -528,7 +534,9 @@ uint8_t I2C_WriteByte(uint8_t data)
 uint8_t I2C_ReadByte(uint8_t ack)
 {
     uint8_t v = 0;
-    for (int i = 7; i >= 0; --i) {
+    int i;
+
+    for (i = 7; i >= 0; --i) {
         v <<= 1;
         v |= I2C_ReadBit();
     }
