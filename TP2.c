@@ -102,11 +102,12 @@ struct_xyz_t capteurs;
 
 void init_ZIF16(void)
 {
+    int i;
+
     /* Sécurité : tout en entrée pull-down (PB15..8 et PC7..0) */
     RCC->APB2ENR |= (1<<3) | (1<<4);
     /* PB8..PB15 : CRH, mettre CNF=10 MODE=00 (input PU/PD) + ODR=0 (PD) */
     GPIOB->CRH = 0; /* we'll set per-nibble */
-    int i;
 
     for (i=8;i<16;i++){
         uint32_t shift = (i-8)*4;
@@ -205,6 +206,7 @@ static void config_usart2(void)
    - PA4 = nCS  (GPIO Push-Pull, géré logiciel via CS_ADXL)
    Mode SPI : CPOL=1, CPHA=1 (mode 3), MSB first, prescaler /64 (~1.125MHz si PCLK2=72MHz)
    Remarque : ADXL345 supporte jusqu'à 5 MHz, donc /64 est "safe".
+*/
 /* -------------------------------------------------------------------------- */
 
 /* Echange 8 bits full-duplex : écrit DR, attend RXNE, lit DR */
