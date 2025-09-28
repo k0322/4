@@ -37,6 +37,7 @@ static void init_I2C_BITBANGING(void);
 
 static void I2C_write_PCF8574(uint8_t addr7, uint8_t data);
 
+static uint8_t fifo_next(uint8_t idx);
 static void fifo_push(uint8_t v);
 static void fifo_push_0x55_burst(uint16_t n);
 
@@ -191,11 +192,20 @@ static void I2C_write_PCF8574(uint8_t addr7, uint8_t data)
 }
 
 /* ======= FIFO TX ======= */
+static uint8_t fifo_next(uint8_t idx)
+{
+    idx++;
+    if (idx >= FIFO_SZ) {
+        idx = 0;
+    }
+    return idx;
+}
+
 static void fifo_push(uint8_t v)
 {
     if(place_libre>0){
         fifo[pw] = v;
-        pw = (uint8_t)(pw + 1);
+        pw = fifo_next(pw);
         place_libre--;
     }
 }
@@ -468,7 +478,7 @@ int main(void)
         if ( (USART2->SR & (1<<7)) != 0u ) { /* TXE */
             if (place_libre < (int)sizeof(fifo)) {
                 USART2->DR = fifo[pr];
-                pr = (uint8_t)(pr + 1);
+                pr = fifo_next(pr);
                 place_libre++;
             }
         }
