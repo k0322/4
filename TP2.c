@@ -3,6 +3,13 @@
 #include <stdbool.h>
 #include "ADXL345.h"
 
+#ifndef ADXL_DATAX0
+#define ADXL_DATAX0     ADXL345_DATAX0
+#endif
+#ifndef ADXL_POWER_CTL
+#define ADXL_POWER_CTL  ADXL345_POWER_CTL
+#endif
+
 /* ======= Types ADXL (sécurité si non définis dans l'en-tête) ======= */
 #ifndef ADXL345_TYPES_DEFINED
 #define ADXL345_TYPES_DEFINED
@@ -86,7 +93,19 @@ static volatile uint16_t consigne_leds_rouges = 0;
 typedef union { uint16_t w; uint8_t b[2]; } U16;
 
 /* buffer accéléro */
-typedef union { struct { uint8_t x0,x1,y0,y1,z0,z1; }; uint8_t b[6]; } U6;
+typedef struct {
+    uint8_t x0;
+    uint8_t x1;
+    uint8_t y0;
+    uint8_t y1;
+    uint8_t z0;
+    uint8_t z1;
+} U6_axes;
+
+typedef union {
+    U6_axes axes;
+    uint8_t b[6];
+} U6;
 static U6 capteurs;
 
 /* ======= Chip Select ADXL (PA4) ======= */
